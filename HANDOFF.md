@@ -45,7 +45,7 @@
 | 全量对拍 | **2132 / 2138 与 Litematica 声明值完全一致，0 解析失败，0 新增不一致** |
 | 扫描速度 | 2139 个文件索引 + 内容哈希 **1.2 秒** |
 | 最大蓝图 | `流萤.litematic` 5.15 亿方块，缩略图 1.0s，单层切片 1.2s |
-| 产物 | app 10.8 MB / cli 1.3 MB |
+| 产物 | app 9.6 MB / cli 1.4 MB（素材不再内嵌，见第 4 节） |
 
 <sup>※</sup> 口径：`crates/*/src` 与 `src-tauri/src` 下的 `.rs` + `src` 下的 `.ts`/`.tsx`，
 含注释和测试。这一行以前写的是 5797（Rust 4550），按同样口径量不出这个数，
@@ -68,7 +68,9 @@ C:\litevault\
 │  └─ litevault-cli/   命令行，**也是正确性验证的主入口**
 ├─ src-tauri/          Tauri 后端命令
 ├─ src/                React 前端
-└─ data/               colors-1.21.4.{json,png}，编进二进制
+└─ tools/              rendercheck.html（3D 着色器像素级自检）
+
+（`data/` 不在仓库里：材质表是 MC 的素材，不分发。见下方「材质表从哪来」。）
 ```
 
 ### 数据流
@@ -117,17 +119,34 @@ npm install && npm run tauri build -- --no-bundle
 
 命令行工具不受此限制：`cargo build --release`。
 
-### 重新生成材质表
+### 材质表从哪来
+
+**材质表和图集不编进二进制，也不进仓库。**
+
+它们是从客户端 jar 的 `textures/block/`、`models/`、`lang/zh_cn.json` 提取的，
+**是 Mojang 的素材，不能随程序分发**。以前是 `include_str!` / `include_bytes!`
+编进 exe 的，那样连发一个 release 二进制都不合规。
+
+现在的做法：应用首次运行引导用户指一个自己已装好的客户端 jar，提取到
+`<app_cache_dir>/assets/{colors.json,colors.png}`，之后每次启动直接装载。
+相关命令是 `assets_status` / `suggest_jars` / `build_assets`，
+前端引导页在 `src/components/AssetsSetup.tsx`。
+
+> **没配置时 `AppState.assets` 是 `None`，应用必须能正常启动**并停在引导页。
+> 以前那里是 `include_str!(...).expect(...)`，一旦没素材就直接 panic。
+> 所有要用素材的命令都走 `AppState::with_assets`，拿不到就返回一句能看懂的错。
+
+开发时想让 CLI 和 `tools/rendercheck.html` 能跑，自己在本地生成一份到 `data/`
+（已在 `.gitignore` 里）：
 
 ```bash
 litevault colors "D:\新建文件夹\.minecraft\1.21.4\1.21.4.jar" data/colors-1.21.4.json
 ```
 
-同时产出 `.json` 和 `.png`，两个都 `include_*!` 进二进制。
+同时产出 `.json` 和 `.png`。
 
-> **改了 `mcassets` 的提取逻辑就必须重新生成**，否则代码和内嵌数据会悄悄脱节：
-> 表里存的是提取时算好的结果，光改代码不重新生成，跑的还是旧数据。
-> 判断方法：重新生成一份到别处，跟 `data/` 里的比 `models` / `blocks` 两个字段，
+> **改了 `mcassets` 的提取逻辑，本地这份也要重新生成**，否则你验的还是旧数据。
+> 判断方法：重新生成一份到别处，跟手上的比 `models` / `blocks` 两个字段，
 > 逻辑没动的话应该逐字节相同。
 >
 > **jar 的位置**：这台机器上的 1.21.4 客户端在 `.minecraft\1.21.4\1.21.4.jar`，
