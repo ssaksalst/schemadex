@@ -10,7 +10,7 @@ import { formatBytes, formatCount } from './types'
 
 type SortKey = 'name' | 'size' | 'modified'
 
-const ROOTS_KEY = 'litevault.roots'
+const ROOTS_KEY = 'schemadex.roots'
 
 export default function App() {
   const [roots, setRoots] = useState<string[]>(() => {
@@ -108,7 +108,7 @@ export default function App() {
     <div className="flex h-full flex-col">
       {/* ---------- 顶栏 ---------- */}
       <header className="flex shrink-0 items-center gap-3 border-b border-ink-800 bg-ink-900 px-4 py-2.5">
-        <h1 className="shrink-0 text-sm font-semibold tracking-tight text-ink-200">LiteVault</h1>
+        <h1 className="shrink-0 text-sm font-semibold tracking-tight text-ink-200">Schemadex</h1>
         {/* 材质表是从哪个版本的客户端提取的。选错了 jar 得有路可退，
             否则只能自己去删应用数据目录 */}
         <button

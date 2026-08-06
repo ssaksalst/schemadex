@@ -1,4 +1,4 @@
-# LiteVault
+# Schemadex
 
 本地 `.litematic` 蓝图库管理器。**不开游戏就能翻自己的蓝图。**
 
@@ -31,7 +31,7 @@ Item Flow Monitor、techutils 已经把投影、材料清单、仓库对账、HU
 
 **本项目不包含、也不分发任何 Minecraft 素材。**
 
-画蓝图需要方块贴图、模型和中文译名，这些都是 Mojang 的资源。LiteVault 的做法是
+画蓝图需要方块贴图、模型和中文译名，这些都是 Mojang 的资源。Schemadex 的做法是
 在你自己的电脑上、从你自己已经装好的客户端 jar 里提取一份，存到本机的应用数据目录。
 程序本身、以及 Releases 里的安装包，都不带这些文件。
 
@@ -39,18 +39,18 @@ Item Flow Monitor、techutils 已经把投影、材料清单、仓库对账、HU
 
 ## 命令行
 
-`litevault` 是同一套内核的 CLI，也是这个项目的正确性验证入口。
+`schemadex` 是同一套内核的 CLI，也是这个项目的正确性验证入口。
 
 ```bash
-litevault scan   <dir>                                  # 扫描目录并按内容去重
-litevault info   <file.litematic>                       # 单个蓝图的结构信息
-litevault mats   <file...>                              # 材料清单，多文件自动汇总
-litevault verify <dir>                                  # 全量对拍：实算值 vs Litematica 声明值
-litevault colors <client.jar> <out.json>                # 从客户端 jar 提取材质表
-litevault thumb  <file> <colors.json> <out.png>         # 等距缩略图
-litevault slice  <file> <colors.json> <y> <out.png>     # 第 y 层俯视切片
-litevault voxels <file> <colors.json> [max_grid]        # 表面体素统计（3D 预览的数据源）
-litevault sample <colors.json> <out.png> <block...>     # 方块对照表，可带方块状态
+schemadex scan   <dir>                                  # 扫描目录并按内容去重
+schemadex info   <file.litematic>                       # 单个蓝图的结构信息
+schemadex mats   <file...>                              # 材料清单，多文件自动汇总
+schemadex verify <dir>                                  # 全量对拍：实算值 vs Litematica 声明值
+schemadex colors <client.jar> <out.json>                # 从客户端 jar 提取材质表
+schemadex thumb  <file> <colors.json> <out.png>         # 等距缩略图
+schemadex slice  <file> <colors.json> <y> <out.png>     # 第 y 层俯视切片
+schemadex voxels <file> <colors.json> [max_grid]        # 表面体素统计（3D 预览的数据源）
+schemadex sample <colors.json> <out.png> <block...>     # 方块对照表，可带方块状态
 ```
 
 `verify` 拿 `Metadata.TotalBlocks`（Litematica 自己数出来的非空气方块数）当标准答案——
@@ -68,9 +68,9 @@ npm run tauri build
 ```
 
 产物是安装包；想要免安装的 exe 就加 `-- --no-bundle`，出在
-`target/release/litevault-app.exe`。
+`target/release/schemadex-app.exe`。
 
-> ⚠️ **别用 `cargo build -p litevault-app`。** 不经 Tauri CLI 编出来的是 dev 模式二进制，
+> ⚠️ **别用 `cargo build -p schemadex-app`。** 不经 Tauri CLI 编出来的是 dev 模式二进制，
 > 前端资源没被内嵌，启动后会去连 `devUrl`（localhost:1421），窗口里显示
 > 「无法访问此页面」。为此 `src-tauri` 已被排除出 workspace 的 `default-members`。
 > 判断手上的 exe 是哪种：生产构建里能搜到 `/assets/index-` 字符串。
@@ -88,7 +88,7 @@ cargo build --release
 | `crates/litematic` | `.litematic` 解析：流式 NBT、跨 long 位解包、材料映射 |
 | `crates/mcassets` | 从客户端 jar 提取模型 / 材质图集 / 中文名 |
 | `crates/render` | 等距缩略图、Y 轴切片、体素模型 |
-| `crates/litevault-cli` | 命令行，也是正确性验证入口 |
+| `crates/schemadex-cli` | 命令行，也是正确性验证入口 |
 | `src-tauri` + `src` | 桌面应用（Tauri 2 + React + three.js） |
 
 ## 想改代码？先读 HANDOFF

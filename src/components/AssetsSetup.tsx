@@ -50,7 +50,7 @@ export function AssetsSetup({ onReady }: { onReady: (s: AssetsStatus) => void })
           先生成一次材质表
         </h1>
         <p className="mt-3 text-xs leading-relaxed text-ink-400">
-          LiteVault 要用方块贴图、模型和中文译名才能画出蓝图。
+          Schemadex 要用方块贴图、模型和中文译名才能画出蓝图。
           这些是 Minecraft 自己的素材，<strong className="text-ink-300">不随程序分发</strong>
           ，需要从你本机已经装好的客户端里提取一份。只做一次，之后一直用。
         </p>

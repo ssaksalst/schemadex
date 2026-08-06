@@ -1,4 +1,4 @@
-//! litevault CLI —— 在接 UI 之前先把解析正确性验穿。
+//! schemadex CLI —— 在接 UI 之前先把解析正确性验穿。
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -16,15 +16,15 @@ fn main() -> Result<()> {
     if args.is_empty() {
         eprintln!(
             "用法:\n  \
-             litevault info     <file.litematic>       单个蓝图的结构信息\n  \
-             litevault verify   <dir>                  全量对拍：实算值 vs Litematica 声明值\n  \
-             litevault mats     <file...>              材料清单（多文件自动汇总）\n  \
-             litevault scan     <dir>                  扫描目录并按内容去重\n  \
-             litevault colors   <client.jar> <out.json> 从游戏 jar 提取方块颜色表\n  \
-             litevault thumb    <file> <colors.json> <out.png>        等距缩略图\n  \
-             litevault slice    <file> <colors.json> <y> <out.png>    第 y 层俯视切片\n  \
-             litevault voxels   <file> <colors.json> [max_grid]       表面体素统计（3D 预览的数据源）\n  \
-             litevault sample   <colors.json> <out.png> <block[prop=v,...]...>  对照表，可带方块状态"
+             schemadex info     <file.litematic>       单个蓝图的结构信息\n  \
+             schemadex verify   <dir>                  全量对拍：实算值 vs Litematica 声明值\n  \
+             schemadex mats     <file...>              材料清单（多文件自动汇总）\n  \
+             schemadex scan     <dir>                  扫描目录并按内容去重\n  \
+             schemadex colors   <client.jar> <out.json> 从游戏 jar 提取方块颜色表\n  \
+             schemadex thumb    <file> <colors.json> <out.png>        等距缩略图\n  \
+             schemadex slice    <file> <colors.json> <y> <out.png>    第 y 层俯视切片\n  \
+             schemadex voxels   <file> <colors.json> [max_grid]       表面体素统计（3D 预览的数据源）\n  \
+             schemadex sample   <colors.json> <out.png> <block[prop=v,...]...>  对照表，可带方块状态"
         );
         std::process::exit(2);
     }
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
 /// 读材质表。图集 PNG 是同名同目录的 `.png`，一并加载。
 fn load_colors(path: &Path) -> Result<(mcassets::BlockAssets, Option<render::Atlas>)> {
     let s = fs::read_to_string(path)
-        .with_context(|| format!("读不到材质表 {}（先跑 litevault colors 生成）", path.display()))?;
+        .with_context(|| format!("读不到材质表 {}（先跑 schemadex colors 生成）", path.display()))?;
     let assets: mcassets::BlockAssets = serde_json::from_str(&s)?;
     let png = path.with_extension("png");
     let atlas = match fs::read(&png) {

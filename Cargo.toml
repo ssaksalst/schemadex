@@ -4,19 +4,19 @@ members = [
     "crates/litematic",
     "crates/mcassets",
     "crates/render",
-    "crates/litevault-cli",
+    "crates/schemadex-cli",
     "src-tauri",
 ]
 
 # 桌面应用**必须**经 Tauri CLI 构建（`npm run tauri build`）。
-# 直接 `cargo build -p litevault-app` 产出的是 dev 模式二进制：前端资源没被内嵌，
+# 直接 `cargo build -p schemadex-app` 产出的是 dev 模式二进制：前端资源没被内嵌，
 # 启动后会去连 tauri.conf.json 里的 devUrl（localhost:1421），显示「无法访问此页面」。
 # 把它排除出默认成员，免得根目录一句 cargo build 就悄悄覆盖掉好的 exe。
 default-members = [
     "crates/litematic",
     "crates/mcassets",
     "crates/render",
-    "crates/litevault-cli",
+    "crates/schemadex-cli",
 ]
 
 [workspace.package]

@@ -1768,38 +1768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "litevault-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "blake3",
- "image",
- "litematic",
- "mcassets",
- "rayon",
- "render",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
-]
-
-[[package]]
-name = "litevault-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake3",
- "litematic",
- "mcassets",
- "rayon",
- "render",
- "serde_json",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2653,6 +2621,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "schemadex-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "blake3",
+ "image",
+ "litematic",
+ "mcassets",
+ "rayon",
+ "render",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+]
+
+[[package]]
+name = "schemadex-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "litematic",
+ "mcassets",
+ "rayon",
+ "render",
+ "serde_json",
 ]
 
 [[package]]

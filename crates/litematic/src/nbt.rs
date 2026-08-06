@@ -224,8 +224,18 @@ impl<R: Read> Reader<R> {
             TAG_BYTE_ARRAY => {
                 let raw = self.i32()?;
                 let n = self.array_len(raw, "ByteArray")?;
-                let mut v = vec![0u8; n];
-                self.inner.read_exact(&mut v)?;
+                // **不按文件声称的长度预分配**，边读边长。
+                // 上限 2.68 亿是给真实巨型蓝图留的，但损坏或恶意文件也能声称这个数，
+                // 那就是一次 268 MB 的即时分配——而 Rust 分配失败是 abort，不是可捕获的错误，
+                // 整个应用会直接没掉。文件说谎时，边读边长最多只分配到实际读到的地方。
+                let mut v: Vec<u8> = Vec::new();
+                let mut left = n;
+                while left > 0 {
+                    let take = left.min(self.sink.len());
+                    self.inner.read_exact(&mut self.sink[..take])?;
+                    v.extend_from_slice(&self.sink[..take]);
+                    left -= take;
+                }
                 Value::ByteArray(v.into_iter().map(|b| b as i8).collect())
             }
             TAG_STRING => Value::String(self.string()?),
@@ -268,7 +278,8 @@ impl<R: Read> Reader<R> {
             TAG_INT_ARRAY => {
                 let raw = self.i32()?;
                 let n = self.array_len(raw, "IntArray")?;
-                let mut v = Vec::with_capacity(n);
+                // 同 ByteArray：容量别信文件里的数字，让它自己长
+                let mut v = Vec::with_capacity(n.min(8192));
                 for _ in 0..n {
                     v.push(self.i32()?);
                 }
@@ -277,7 +288,8 @@ impl<R: Read> Reader<R> {
             TAG_LONG_ARRAY => {
                 let raw = self.i32()?;
                 let n = self.array_len(raw, "LongArray")?;
-                let mut v: Vec<i64> = Vec::with_capacity(n);
+                // 同 ByteArray：2.68 亿个 i64 预分配就是 2.1 GB，恶意文件白拿
+                let mut v: Vec<i64> = Vec::with_capacity(n.min(8192));
                 // 批量读，避免逐个 read_exact 的系统调用开销
                 let mut buf = vec![0u8; 8 * 8192];
                 let mut left = n;

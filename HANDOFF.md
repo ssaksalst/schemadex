@@ -1,4 +1,4 @@
-# LiteVault 交割文档
+# Schemadex 交割文档
 
 > 面向接手的人。README 讲「怎么用」，这份讲「为什么长这样、坑在哪、下一步做什么」。
 > 最后更新：2026-08-06
@@ -60,12 +60,12 @@
 ## 3. 结构
 
 ```
-C:\litevault\
+C:\schemadex\
 ├─ crates/
 │  ├─ litematic/       .litematic 解析：流式 NBT、跨 long 位解包、材料映射
 │  ├─ mcassets/        从客户端 jar 提取模型 / 材质图集 / 中文名
 │  ├─ render/          等距缩略图、Y 轴切片、体素模型
-│  └─ litevault-cli/   命令行，**也是正确性验证的主入口**
+│  └─ schemadex-cli/   命令行，**也是正确性验证的主入口**
 ├─ src-tauri/          Tauri 后端命令
 ├─ src/                React 前端
 └─ tools/              rendercheck.html（3D 着色器像素级自检）
@@ -95,7 +95,7 @@ C:\litevault\
 - **litematic** 只管解析，不知道材质和渲染的存在。`materials.rs` 里的方块→物品映射是手工表。
 - **mcassets** 只管从 jar 提数据 + 按方块状态解析模型，不碰渲染。
 - **render** 是纯 CPU 光栅化，输出 `RgbaImage`。3D 那条路只输出体素数据，渲染在前端。
-- **litevault-cli** 不是玩具，是**验证入口**。每次改渲染都应该先用它出图核对。
+- **schemadex-cli** 不是玩具，是**验证入口**。每次改渲染都应该先用它出图核对。
 
 ---
 
@@ -107,7 +107,7 @@ C:\litevault\
 npm install && npm run tauri build -- --no-bundle
 ```
 
-> ⚠️ **别用 `cargo build -p litevault-app`。** 不经 Tauri CLI 编出来的是 dev 模式二进制，
+> ⚠️ **别用 `cargo build -p schemadex-app`。** 不经 Tauri CLI 编出来的是 dev 模式二进制，
 > 前端资源没被内嵌，启动后去连 `devUrl`（localhost:1421），窗口里显示
 > 「无法访问此页面 / localhost 拒绝连接」。
 >
@@ -140,7 +140,7 @@ npm install && npm run tauri build -- --no-bundle
 （已在 `.gitignore` 里）：
 
 ```bash
-litevault colors "D:\新建文件夹\.minecraft\1.21.4\1.21.4.jar" data/colors-1.21.4.json
+schemadex colors "<你的 .minecraft>/versions/<版本>/<版本>.jar" data/colors-1.21.4.json
 ```
 
 同时产出 `.json` 和 `.png`。
@@ -149,8 +149,9 @@ litevault colors "D:\新建文件夹\.minecraft\1.21.4\1.21.4.jar" data/colors-1
 > 判断方法：重新生成一份到别处，跟手上的比 `models` / `blocks` 两个字段，
 > 逻辑没动的话应该逐字节相同。
 >
-> **jar 的位置**：这台机器上的 1.21.4 客户端在 `.minecraft\1.21.4\1.21.4.jar`，
-> **不在** `versions\` 下面。中文名要顺着 jar 路径往上找 `.minecraft/assets/indexes`，
+> **jar 不一定在 `versions/` 下**：实测见过 `.minecraft/<版本>/<版本>.jar` 这种布局，
+> 所以 `suggest_jars` 在 `.minecraft` 下扫两层，凡是 `<目录名>.jar` 都算候选。
+> 中文名要顺着 jar 路径往上找 `.minecraft/assets/indexes`，
 > 以前写死「往上两级」，对这个路径就找不着，静默退回全英文 ID（2636 条名字一条不剩，
 > 而且不报错）。现在改成逐级往上找有 `assets/indexes` 的那层。
 > 生成完先看一眼 `names` 的条数对不对。
@@ -196,7 +197,7 @@ litevault colors "D:\新建文件夹\.minecraft\1.21.4\1.21.4.jar" data/colors-1
 位解包、调色板顺序、空气判定错一处这个数就对不上。
 
 ```bash
-litevault verify "D:\path\to\.minecraft\versions"
+schemadex verify "D:\path\to\.minecraft\versions"
 ```
 
 改动 `litematic` crate 之后**必须跑这个**。
@@ -265,7 +266,7 @@ litevault verify "D:\path\to\.minecraft\versions"
     现在 bbox 是 `[i8;6]` 且不夹。算一遍就知道对不对——`piston[facing=east,
     extended=true]` 本体占 x 0..12（东侧留 4/16 凹槽），`piston_head[facing=east]`
     的杆是 x `-4..12`，换算到世界坐标正好从本体凹槽的起点接到头板的内面，严丝合缝。
-    `litevault sample` 会把每个长方体的包围盒都列出来，伸出格子外的标上提示。
+    `schemadex sample` 会把每个长方体的包围盒都列出来，伸出格子外的标上提示。
 10. **「填满一格」和「挡得住」是两回事。** 玻璃、树叶都是严丝合缝的 16³ 完整立方体，
    但看得穿。遮挡剔除只看几何（`is_full_cube`）的话，玻璃罩里的整台机器
    会从 3D 视图里**整个消失**——而且这时候无论着色器怎么改都救不回来，
@@ -331,7 +332,7 @@ instanced 没法逐片排序，玻璃叠玻璃的地方会偏暗——但那恰�
 ### 等距 / 切片：用对照表
 
 ```bash
-litevault sample data/colors-1.21.4.json out.png \
+schemadex sample data/colors-1.21.4.json out.png \
   "oak_stairs[facing=east,half=bottom]" "redstone_wire[power=0,north=side,south=side]" torch
 ```
 
@@ -344,7 +345,7 @@ litevault sample data/colors-1.21.4.json out.png \
 脚手架现在是**常驻**的：`tools/rendercheck.html`。以前每次改着色器都临时写一个再删掉，
 下一次又从零搭一遍——留着的成本只有一个文件，重搭的成本是每次都可能搭得不一样。
 
-1. 在 `C:\lumina-project\.claude\launch.json` 建一条 `litevault-web`
+1. 在 `C:\lumina-project\.claude\launch.json` 建一条 `schemadex-web`
    —— 注意 launch.json 要放在 **cwd** 下，不是项目下，所以它没法跟项目一起提交。
    实测能用的配置（`cwd` 字段会被拒，必须直接指 vite 的可执行文件、根目录走位置参数）：
 
@@ -352,9 +353,9 @@ litevault sample data/colors-1.21.4.json out.png \
    {
      "version": "0.0.1",
      "configurations": [{
-       "name": "litevault-web",
-       "runtimeExecutable": "C:\\litevault\\node_modules\\.bin\\vite.cmd",
-       "runtimeArgs": ["C:\\litevault", "--config", "C:\\litevault\\vite.config.ts",
+       "name": "schemadex-web",
+       "runtimeExecutable": "C:\\schemadex\\node_modules\\.bin\\vite.cmd",
+       "runtimeArgs": ["C:\\schemadex", "--config", "C:\\schemadex\\vite.config.ts",
                        "--port", "1421", "--strictPort"],
        "port": 1421
      }]
@@ -383,7 +384,7 @@ litevault sample data/colors-1.21.4.json out.png \
 ## 8. 环境坑（这台机器特有）
 
 - **必须在纯 ASCII 路径下构建。** 用户名含中文，Rust 工具链须为 MSVC。
-  项目在 `C:\litevault`，`CARGO_HOME=C:\cargo_home`。
+  项目在 `C:\schemadex`，`CARGO_HOME=C:\cargo_home`。
 - **PowerShell 5.1 把无 BOM 的 UTF-8 按 GBK 读。** `.ps1` 脚本里**别写中文注释**——
   中文可能被错解出游离引号，把后面的 here-string 整段吞掉。（写文件用
   `[System.IO.File]::WriteAllText($p, $t, (New-Object System.Text.UTF8Encoding($false)))`）
@@ -393,10 +394,12 @@ litevault sample data/colors-1.21.4.json out.png \
 - **PowerShell 进程默认 DPI 不感知。** 这台机器真实分辨率 **2520×1680**，
   不调 `SetProcessDPIAware()` 的话 `Screen.Bounds` 和 `MoveWindow` 会被虚拟化成 1680×1120，
   窗口一半跑到屏幕外。
-- **用户的蓝图目录**：`D:\新建文件夹\.minecraft`（PCL 启动器，**版本隔离**，
-  蓝图散在 6 个 `versions/*/schematics/` 下）。默认的 `%APPDATA%\.minecraft` 是空的。
-- **1.21.4 客户端 jar 在 `.minecraft\1.21.4\1.21.4.jar`**，不在 `versions\` 下面
-  （`versions\` 里最新的只到 1.21.1-NeoForge）。重新生成材质表要用它，见第 4 节。
+- **国内玩家多用 PCL / HMCL，且默认开版本隔离**：蓝图散在各
+  `versions/<版本>/schematics/` 下，官方启动器那个 `%APPDATA%\.minecraft\schematics`
+  往往是空的。所以 `suggest_roots` 要遍历盘符去找 `.minecraft`，不能只看 `%APPDATA%`。
+- **客户端 jar 也不一定在 `versions/` 下**，见第 4 节。
+- 开发用的真实语料是一份 2138 个 `.litematic`、171 MB、跨 MC 1.13~1.21.4 的私人收藏，
+  不在仓库里。第 5 节那些硬约束全是从它上面实测出来的。
 - **别长时间抢用户前台。** 自动化驱动 GUI 时截到过用户的浏览器窗口——他在用电脑。
   能用 CLI 验证的就别开 GUI。
 
@@ -452,7 +455,7 @@ litevault sample data/colors-1.21.4.json out.png \
 ### ~~低：3D 视图的实例数没有上限保护~~（已做）
 上限现在卡在 instance 上（`MAX_INSTANCES = 900_000`），不再卡体素数。
 一个方块可能展开成多个长方体（栅栏 5 个），实测膨胀 1.9~2.1×，
-以前只卡体素数等于把上限放宽了一倍。`litevault voxels` 会打印
+以前只卡体素数等于把上限放宽了一倍。`schemadex voxels` 会打印
 「instance 数 …，膨胀 …×」，口径和前端数 instance 的方式一致。
 
 ### 低：等距图不支持透视/旋转

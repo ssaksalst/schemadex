@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "LiteVault 主窗口权限",
+  "description": "Schemadex 主窗口权限",
   "windows": ["main"],
   "permissions": ["core:default", "dialog:default"]
 }

@@ -1,8 +1,8 @@
 {
-  "name": "litevault",
+  "name": "schemadex",
   "private": true,
   "version": "0.1.0",
-  "description": "LiteVault — MC 蓝图库管理器",
+  "description": "Schemadex — MC 蓝图库管理器",
   "type": "module",
   "scripts": {
     "dev": "vite",

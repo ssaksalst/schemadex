@@ -1,11 +1,11 @@
 [package]
-name = "litevault-app"
+name = "schemadex-app"
 version = "0.1.0"
-description = "LiteVault — MC 蓝图库管理器"
+description = "Schemadex — MC 蓝图库管理器"
 edition = "2021"
 
 [lib]
-name = "litevault_lib"
+name = "schemadex_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

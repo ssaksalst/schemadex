@@ -1,11 +1,11 @@
 [package]
-name = "litevault-cli"
+name = "schemadex-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "litevault"
+name = "schemadex"
 path = "src/main.rs"
 
 [dependencies]

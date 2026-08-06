@@ -1,4 +1,4 @@
-//! LiteVault 后端命令。
+//! Schemadex 后端命令。
 //!
 //! 设计要点：
 //! - **扫描分两段**：先用索引模式（跳过 BlockStates）拿结构信息，2138 个文件 0.6 秒；
@@ -31,7 +31,7 @@ use mcassets::BlockAssets;
 /// 现在换成「用户拿自己已经装好的游戏生成一份」，谁装了 MC 谁就有素材，
 /// 我们既不复制也不传播。
 ///
-/// 生成逻辑就是 `litevault colors <jar>` 那一条，见 [`build_assets`]。
+/// 生成逻辑就是 `schemadex colors <jar>` 那一条，见 [`build_assets`]。
 const ASSETS_DIR: &str = "assets";
 const ASSETS_JSON: &str = "colors.json";
 const ASSETS_PNG: &str = "colors.png";
@@ -664,12 +664,36 @@ fn suggest_jars() -> Vec<String> {
     }
     out.sort();
     out.dedup();
+    // **新版本排前面。** 默认按字母序的话 1.19.2 会排在 1.21.4 前头，
+    // 用户十有八九点第一个——然后 1.19.2 之后加的方块（樱花木、幽匿、铜灯、
+    // 合成器、苍白橡木…）全部退化成兜底色，而且没有任何提示。
+    out.sort_by(|a, b| version_key(b).cmp(&version_key(a)));
+    out
+}
+
+/// 从路径里抽出版本号用于排序，如 `1.21.4-Fabric` → `[1, 21, 4]`。
+/// 抽不出数字的排最后。**必须按数字比，不能按字典序**：字典序下 "1.9" > "1.21"。
+fn version_key(path: &str) -> Vec<u32> {
+    let name = Path::new(path).file_stem().map_or_else(String::new, |s| s.to_string_lossy().into_owned());
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for c in name.chars() {
+        if c.is_ascii_digit() {
+            cur.push(c);
+        } else if !cur.is_empty() {
+            out.push(cur.parse().unwrap_or(0));
+            cur.clear();
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur.parse().unwrap_or(0));
+    }
     out
 }
 
 /// 从客户端 jar 生成材质表，写进应用数据目录并立刻装载。
 ///
-/// 就是 `litevault colors` 那条命令的应用内版本。**素材始终来自用户自己的游戏**，
+/// 就是 `schemadex colors` 那条命令的应用内版本。**素材始终来自用户自己的游戏**，
 /// 我们不分发任何 Mojang 的东西。
 #[tauri::command]
 fn build_assets(jar: String, state: State<AppState>) -> Result<AssetsStatus, String> {
@@ -772,4 +796,26 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 启动失败");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::version_key;
+
+    /// 版本号必须按数字比。字典序下 "1.9" 会排到 "1.21" 前面，
+    /// 结果用户默认拿到的是最旧的客户端。
+    #[test]
+    fn newer_versions_sort_first() {
+        let mut v = vec![
+            r"D:\mc\versions\1.19.2-Fabric 0.15.10\1.19.2-Fabric 0.15.10.jar".to_string(),
+            r"D:\mc\1.21.4\1.21.4.jar".to_string(),
+            r"D:\mc\versions\1.9.4\1.9.4.jar".to_string(),
+            r"D:\mc\versions\1.20.1\1.20.1.jar".to_string(),
+        ];
+        v.sort_by(|a, b| version_key(b).cmp(&version_key(a)));
+        assert!(v[0].contains("1.21.4"), "最新的该排第一，实际 {:?}", v[0]);
+        assert!(v[1].contains("1.20.1"));
+        assert!(v[2].contains("1.19.2"));
+        assert!(v[3].contains("1.9.4"), "1.9 该排最后，字典序会把它排前面");
+    }
 }
