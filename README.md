@@ -119,5 +119,5 @@ cargo build --release
 
 ## 许可
 
-代码 [MIT](LICENSE)。许可只覆盖本项目自己的源码，不涉及 Minecraft 素材——
+代码 [MIT](LICENSE)。许可只覆盖本项目自己的源码，不涉及 Minecraft 素材（见 [NOTICE.md](NOTICE.md)）——
 那些是在你本机从你自己的游戏里提取的，权利归 Mojang，适用 Minecraft EULA。
