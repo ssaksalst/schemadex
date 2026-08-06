@@ -6,5 +6,5 @@ src-tauri/gen
 
 # 材质表与图集：从 Minecraft 客户端 jar 提取出来的，**是 Mojang 的素材，不分发**。
 # 应用首次运行会在应用数据目录里自己生成一份；开发时想让
-# tools/rendercheck.html 能跑，用 `litevault colors <jar> data/colors-1.21.4.json` 生成到这里。
+# tools/rendercheck.html 能跑，用 `schemadex colors <jar> data/colors-1.21.4.json` 生成到这里。
 /data

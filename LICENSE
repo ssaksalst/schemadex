@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 LiteVault contributors
+Copyright (c) 2026 Schemadex contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ NOTE ON MINECRAFT ASSETS / 关于 Minecraft 素材
 
 The MIT license above covers this project's own source code only.
 
-LiteVault contains and distributes NO Minecraft assets. Block textures, block
+Schemadex contains and distributes NO Minecraft assets. Block textures, block
 models and translation strings are extracted at runtime, on the user's own
 machine, from a Minecraft client jar the user already has installed, and are
 stored only in that machine's local application data directory. Those assets
@@ -35,10 +35,10 @@ Minecraft End User License Agreement — not by this license.
 
 以上 MIT 许可只覆盖本项目自己的源代码。
 
-LiteVault 不包含、也不分发任何 Minecraft 素材。方块贴图、模型和译名是在用户
+Schemadex 不包含、也不分发任何 Minecraft 素材。方块贴图、模型和译名是在用户
 本机、从用户自己已安装的 Minecraft 客户端 jar 中提取的，只保存在本机的应用数据
 目录里。这些素材的权利归 Mojang Studios / Microsoft，适用 Minecraft 最终用户
 许可协议，不适用本许可证。
 
-LiteVault is not an official Minecraft product. It is not approved by or
+Schemadex is not an official Minecraft product. It is not approved by or
 associated with Mojang Studios or Microsoft.
