@@ -1,0 +1,256 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>rendercheck — 3D 着色器像素级自检</title>
+<!--
+  3D 视图的着色器改动**必须**先过这一关，别靠肉眼看整机图猜。
+  这个项目在渲染上返工过五轮，每一轮都是因为「看着差不多」就交付了；
+  v 翻转那次没验就交付，用户直接说「所有方块材质全错」。
+
+  跑法（详见 HANDOFF 第 7 节）：
+    1. 起 vite dev server（端口 1421），preview_start 而不是直接 navigate localhost
+    2. 打开 /tools/rendercheck.html
+    3. 用 javascript_tool 读 window.__result，看 pass 和 checks
+
+  它渲染一个正交相机正对的合成场景，readPixels 取几个已知位置的像素，
+  拿它们和 alpha 混合公式的期望值逐通道比。**着色器代码必须和
+  Viewer3D.tsx 里的 patchShader 逐字一致**，否则验的就不是线上那份。
+-->
+<body style="margin:0;background:#000">
+<div id="out" style="color:#eee;font:12px monospace;white-space:pre"></div>
+<script type="module">
+import * as THREE from 'three'
+
+// 与 Viewer3D 完全相同的图集索引口径。
+// 图块号可以用 `litevault sample` 或直接查材质表 json 拿到
+const TILES_PER_ROW = 33
+const STONE = 477
+const BLUE_GLASS = 109
+const PLAIN_GLASS = 420
+/** 这面要画但没贴图 → 平均色 */
+const NO_TILE = 65535
+/** 模型没声明这一面 → 不画。和后端 mcassets::NO_FACE 一致 */
+const NO_FACE = 65534
+
+function packUv(rect, rot) {
+  return rect[0] + rect[1] * 17 + rect[2] * 289 + rect[3] * 4913 + (rot & 3) * 83521
+}
+
+// —— 下面这段必须和 Viewer3D.tsx 里的 patchShader 逐字一致 ——
+const patchShader = (shader) => {
+  shader.uniforms.uTilesPerRow = { value: TILES_PER_ROW }
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', `#include <common>
+       attribute vec3 aTilesA;
+       attribute vec3 aTilesB;
+       attribute vec3 aUvA;
+       attribute vec3 aUvB;
+       attribute vec3 aFallback;
+       varying float vTile;
+       varying float vPacked;
+       varying vec2 vTileUv;
+       varying vec3 vFallback;`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+       if (normal.y > 0.5)       { vTile = aTilesA.x; vPacked = aUvA.x; }
+       else if (normal.y < -0.5) { vTile = aTilesA.y; vPacked = aUvA.y; }
+       else if (normal.z < -0.5) { vTile = aTilesA.z; vPacked = aUvA.z; }
+       else if (normal.z > 0.5)  { vTile = aTilesB.x; vPacked = aUvB.x; }
+       else if (normal.x > 0.5)  { vTile = aTilesB.y; vPacked = aUvB.y; }
+       else                      { vTile = aTilesB.z; vPacked = aUvB.z; }
+       vTileUv = uv;
+       vFallback = aFallback;`)
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+       uniform float uTilesPerRow;
+       varying float vTile;
+       varying float vPacked;
+       varying vec2 vTileUv;
+       varying vec3 vFallback;`)
+    .replace('#include <map_fragment>', `
+       float tile = floor(vTile + 0.5);
+       if (tile > 65534.5) {
+         diffuseColor.rgb *= vFallback;
+       } else if (tile > 65533.5) {
+         diffuseColor.a = 0.0;
+       } else {
+         float packed = floor(vPacked + 0.5);
+         float u1 = mod(packed, 17.0);
+         float v1 = mod(floor(packed / 17.0), 17.0);
+         float u2 = mod(floor(packed / 289.0), 17.0);
+         float v2 = mod(floor(packed / 4913.0), 17.0);
+         float rot = floor(packed / 83521.0);
+         vec2 p = clamp(vTileUv, 0.002, 0.998);
+         if (rot > 2.5)      p = vec2(1.0 - p.y, p.x);
+         else if (rot > 1.5) p = vec2(1.0 - p.x, 1.0 - p.y);
+         else if (rot > 0.5) p = vec2(p.y, 1.0 - p.x);
+         vec2 tex = vec2(u1 + p.x * (u2 - u1), v1 + (1.0 - p.y) * (v2 - v1)) / 16.0;
+         float row = floor(tile / uTilesPerRow + 0.0001);
+         float col = tile - row * uTilesPerRow;
+         float u = (col + clamp(tex.x, 0.002, 0.998)) / uTilesPerRow;
+         float v = 1.0 - (row + clamp(tex.y, 0.002, 0.998)) / uTilesPerRow;
+         vec4 texel = texture2D(map, vec2(u, v));
+         diffuseColor *= texel;
+       }`)
+}
+
+const FULL_UV = [0, 0, 16, 16]
+
+function makeMesh(atlasTex, translucent, entries) {
+  const geom = new THREE.BoxGeometry(1, 1, 1)
+  const mat = new THREE.MeshLambertMaterial({
+    map: atlasTex,
+    ...(translucent ? { transparent: true, depthWrite: false } : { alphaTest: 0.35 }),
+  })
+  mat.onBeforeCompile = patchShader
+  mat.customProgramCacheKey = () => `atlas-${TILES_PER_ROW}`
+  const mesh = new THREE.InstancedMesh(geom, mat, entries.length)
+  mesh.renderOrder = translucent ? 1 : 0
+  const n = entries.length
+  const tA = new Float32Array(n * 3), tB = new Float32Array(n * 3)
+  const uA = new Float32Array(n * 3), uB = new Float32Array(n * 3)
+  const fb = new Float32Array(n * 3)
+  const dummy = new THREE.Object3D()
+  entries.forEach((e, i) => {
+    dummy.scale.set(1, 1, 1)
+    dummy.position.set(e.pos[0], e.pos[1], e.pos[2])
+    dummy.updateMatrix()
+    mesh.setMatrixAt(i, dummy.matrix)
+    // faces 给了就按六面各自的图块，否则六面同一张
+    const fs = e.faces || [e.tile, e.tile, e.tile, e.tile, e.tile, e.tile]
+    for (let f = 0; f < 3; f++) {
+      tA[i * 3 + f] = fs[f]; tB[i * 3 + f] = fs[f + 3]
+      uA[i * 3 + f] = packUv(FULL_UV, 0); uB[i * 3 + f] = packUv(FULL_UV, 0)
+    }
+    fb[i * 3] = 1; fb[i * 3 + 1] = 1; fb[i * 3 + 2] = 1
+  })
+  mesh.instanceMatrix.needsUpdate = true
+  geom.setAttribute('aTilesA', new THREE.InstancedBufferAttribute(tA, 3))
+  geom.setAttribute('aTilesB', new THREE.InstancedBufferAttribute(tB, 3))
+  geom.setAttribute('aUvA', new THREE.InstancedBufferAttribute(uA, 3))
+  geom.setAttribute('aUvB', new THREE.InstancedBufferAttribute(uB, 3))
+  geom.setAttribute('aFallback', new THREE.InstancedBufferAttribute(fb, 3))
+  return mesh
+}
+
+async function run() {
+  // 图集不在仓库里（是 MC 的素材，不分发），跑这个自检前先在本地生成一份：
+  //   litevault colors "<你的 .minecraft>/versions/<版本>/<版本>.jar" data/colors-1.21.4.json
+  // data/ 已经在 .gitignore 里
+  const atlasTex = await new Promise((res, rej) =>
+    new THREE.TextureLoader().load('/data/colors-1.21.4.png', res, undefined, rej))
+  atlasTex.magFilter = THREE.NearestFilter
+  atlasTex.minFilter = THREE.NearestFilter
+  atlasTex.generateMipmaps = false
+  atlasTex.colorSpace = THREE.SRGBColorSpace
+  atlasTex.wrapS = atlasTex.wrapT = THREE.ClampToEdgeWrapping
+
+  const W = 256, H = 256
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: true })
+  renderer.setPixelRatio(1)
+  renderer.setSize(W, H)
+  document.body.appendChild(renderer.domElement)
+
+  // 正交相机正对 +Z 看过来，四根柱子并排：
+  //   x=-3 只有石头（基准）
+  //   x=-1 石头前面挡一块蓝色染色玻璃
+  //   x=+1 石头前面挡一块普通玻璃
+  //   x=+3 只有蓝色染色玻璃，背后什么都没有（对照组）
+  //   x=+5 石头前面挡一块「南面标了 NO_FACE」的方块——该完全不挡
+  //
+  // 那个对照组是关键：只看「玻璃后面的石头变蓝了」不足以证明混合发生了，
+  // 得证明它和「玻璃单独画」不是同一个颜色，才排除掉玻璃根本没透的可能。
+  const camera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100)
+  camera.position.set(0, 0, 10)
+  camera.lookAt(0, 0, 0)
+
+  const scene = new THREE.Scene()
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0))
+
+  const stone = [
+    { pos: [-3, 0, 0], tile: STONE },
+    { pos: [-1, 0, 0], tile: STONE },
+    { pos: [1, 0, 0], tile: STONE },
+    { pos: [5, 0, 0], tile: STONE },
+  ]
+  // 普通玻璃是 cutout，走不透明那一趟（alphaTest）
+  const cutout = [
+    { pos: [1, 0, 2], tile: PLAIN_GLASS },
+    // 面朝相机的那一面标成 NO_FACE：模型没声明就不该画，后面的石头要原样透出来。
+    // 面序：up, down, north, south, east, west；相机在 +Z，看到的是 south 面
+    { pos: [5, 0, 2], faces: [STONE, STONE, STONE, NO_FACE, STONE, STONE] },
+  ]
+  const glass = [
+    { pos: [-1, 0, 2], tile: BLUE_GLASS },
+    { pos: [3, 0, 2], tile: BLUE_GLASS },
+  ]
+
+  scene.add(makeMesh(atlasTex, false, stone.concat(cutout)))
+  scene.add(makeMesh(atlasTex, true, glass))
+
+  renderer.render(scene, camera)
+
+  const buf = new Uint8Array(W * H * 4)
+  const gl = renderer.getContext()
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf)
+  const px = (sx, sy) => {
+    // readPixels 的原点在左下角
+    const x = Math.round(sx), y = Math.round(H - 1 - sy)
+    const o = (y * W + x) * 4
+    return [buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]
+  }
+
+  // 世界 x∈[-6,6] → 屏幕 x∈[0,256]
+  const cx = (wx) => ((wx + 6) / 12) * W
+  const cy = H / 2
+
+  const bare = px(cx(-3), cy)          // 裸石头，基准
+  const behindGlass = px(cx(-1), cy)   // 蓝色染色玻璃后面的石头
+  const glassAlone = px(cx(3), cy)     // 同一块玻璃，背后是空的
+  // 普通玻璃的中心是全透明纹素，应该被 alphaTest 剪掉，直接看到石头
+  const behindCutoutCenter = px(cx(1), cy)
+  // 普通玻璃的边框是不透明的，取靠近格子边缘的一点
+  const cutoutFrame = px(cx(1) - 10, cy)
+  // NO_FACE 那一面后面的石头
+  const behindNoFace = px(cx(5), cy)
+
+  const near = (a, b, tol) => Math.abs(a[0] - b[0]) <= tol
+    && Math.abs(a[1] - b[1]) <= tol && Math.abs(a[2] - b[2]) <= tol
+
+  // glassAlone 是画在空画布上的，读回来的 RGB 已经**乘过 alpha**了
+  // （canvas 是预乘的）。要还原玻璃自身的颜色得先除回去，
+  // 否则拿它去跟混合结果比大小会得出错误结论。
+  const a = glassAlone[3] / 255
+  const glassSrc = [0, 1, 2].map((i) => glassAlone[i] / a)
+  // 期望值：源色 × alpha + 背景 × (1 - alpha)
+  const expected = [0, 1, 2].map((i) => glassSrc[i] * a + bare[i] * (1 - a))
+
+  const checks = {
+    // 染色玻璃必须真的透出后面的石头：既不等于裸石头，也不等于玻璃自己
+    '染色玻璃发生了混合': !near(behindGlass, bare, 6) && !near(behindGlass, glassSrc, 6),
+    // 而且要精确满足 alpha 混合公式，不只是「看起来变了个色」
+    '混合结果符合 alpha 公式':
+      [0, 1, 2].every((i) => Math.abs(behindGlass[i] - expected[i]) <= 2),
+    // 普通玻璃中心被剪掉，看到的应该就是原样的石头
+    '普通玻璃中心被剪掉': near(behindCutoutCenter, bare, 3),
+    // 边框还在，不能连边框一起剪没了
+    '普通玻璃边框还在': !near(cutoutFrame, bare, 6),
+    // 模型没声明的面完全不画：后面的石头必须和裸石头一模一样。
+    // 退回平均色是不够的——那只是把「带纹理的错东西」换成「纯色的错东西」
+    'NO_FACE 的面完全不画': near(behindNoFace, bare, 2),
+  }
+
+  window.__result = {
+    bare, behindGlass, glassAlone, behindCutoutCenter, cutoutFrame, behindNoFace,
+    glassSrc: glassSrc.map((v) => Math.round(v)),
+    expected: expected.map((v) => Math.round(v)),
+    checks,
+    pass: Object.values(checks).every(Boolean),
+  }
+  document.getElementById('out').textContent = JSON.stringify(window.__result, null, 2)
+}
+
+run().catch((e) => {
+  window.__result = { error: String(e) }
+  document.getElementById('out').textContent = String(e)
+})
+</script>
+</body>

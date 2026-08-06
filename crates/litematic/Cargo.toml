@@ -1,0 +1,11 @@
+[package]
+name = "litematic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Reader for Litematica .litematic schematics"
+
+[dependencies]
+anyhow.workspace = true
+flate2.workspace = true
+serde.workspace = true

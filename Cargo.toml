@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/litematic",
+    "crates/mcassets",
+    "crates/render",
+    "crates/litevault-cli",
+    "src-tauri",
+]
+
+# 桌面应用**必须**经 Tauri CLI 构建（`npm run tauri build`）。
+# 直接 `cargo build -p litevault-app` 产出的是 dev 模式二进制：前端资源没被内嵌，
+# 启动后会去连 tauri.conf.json 里的 devUrl（localhost:1421），显示「无法访问此页面」。
+# 把它排除出默认成员，免得根目录一句 cargo build 就悄悄覆盖掉好的 exe。
+default-members = [
+    "crates/litematic",
+    "crates/mcassets",
+    "crates/render",
+    "crates/litevault-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[workspace.dependencies]
+anyhow = "1"
+flate2 = "1"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

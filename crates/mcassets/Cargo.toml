@@ -1,0 +1,13 @@
+[package]
+name = "mcassets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "从 Minecraft 客户端 jar 提取方块代表色"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+zip = { version = "2", default-features = false, features = ["deflate"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

@@ -1,0 +1,13 @@
+[package]
+name = "render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "蓝图等距缩略图与切片渲染"
+
+[dependencies]
+litematic = { path = "../litematic" }
+mcassets = { path = "../mcassets" }
+anyhow.workspace = true
+serde.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }

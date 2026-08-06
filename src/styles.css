@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-ink-950 text-ink-200 antialiased;
+    font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  /* 数字要能竖着对齐，材料清单才读得下去 */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .scroll-thin::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    @apply bg-ink-700 rounded-full border-2 border-solid border-transparent bg-clip-padding;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-600;
+  }
+  /* 缩略图是像素画，缩放时不能被插值糊掉 */
+  .pixelated {
+    image-rendering: pixelated;
+  }
+}

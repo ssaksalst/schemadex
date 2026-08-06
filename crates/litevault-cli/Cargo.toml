@@ -1,0 +1,19 @@
+[package]
+name = "litevault-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "litevault"
+path = "src/main.rs"
+
+[dependencies]
+litematic = { path = "../litematic" }
+mcassets = { path = "../mcassets" }
+render = { path = "../render" }
+anyhow.workspace = true
+rayon.workspace = true
+serde_json.workspace = true
+# verify 的已知例外名单按内容哈希认人，改名和跨目录复制都不影响
+blake3 = "1"
