@@ -54,11 +54,23 @@ impl Vec3i {
             z: c.get("z")?.as_i32()?,
         })
     }
+    /// 取绝对值。**`i32::MIN` 用 `saturating_abs` 而不是 `abs`**：
+    /// `i32::MIN.abs()` 会溢出，debug 下直接 panic，release 下返回 `i32::MIN` 本身
+    /// （还是负的）。负 `Size` 在真实蓝图里是常态（实测 1757/2708 个 region），
+    /// 所以这条路是拿用户下载来的文件喂的，不能假设值域正常。
     pub fn abs(self) -> Self {
-        Self { x: self.x.abs(), y: self.y.abs(), z: self.z.abs() }
+        Self {
+            x: self.x.saturating_abs(),
+            y: self.y.saturating_abs(),
+            z: self.z.saturating_abs(),
+        }
     }
+    /// 体积。同上，用 `unsigned_abs` 避开 `i32::MIN` 溢出；
+    /// 再用饱和乘法，免得畸形尺寸把 u64 也乘溢出。
     pub fn volume(self) -> u64 {
-        (self.x.abs() as u64) * (self.y.abs() as u64) * (self.z.abs() as u64)
+        (self.x.unsigned_abs() as u64)
+            .saturating_mul(self.y.unsigned_abs() as u64)
+            .saturating_mul(self.z.unsigned_abs() as u64)
     }
 }
 
@@ -428,4 +440,23 @@ fn parse_item_stack(v: &Value) -> Option<ItemStack> {
         .and_then(Value::as_i64)
         .unwrap_or(1);
     Some(ItemStack { id, count })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Vec3i;
+
+    /// `i32::MIN.abs()` 会溢出：debug 下 panic，release 下返回 `i32::MIN` 本身，
+    /// `as u64` 之后就是个天文数字。负 `Size` 在真实蓝图里是常态，
+    /// 而蓝图是用户从网上下来的，这条路吃的是不可信输入。
+    #[test]
+    fn abs_and_volume_survive_i32_min() {
+        let v = Vec3i { x: i32::MIN, y: -3, z: 2 };
+        let a = v.abs();
+        assert!(a.x > 0, "i32::MIN 取绝对值后必须是正的，实际 {}", a.x);
+        assert_eq!((a.y, a.z), (3, 2));
+        // 三个方向都取极值也不能 panic 或回绕成 0
+        let vol = Vec3i { x: i32::MIN, y: i32::MIN, z: i32::MIN }.volume();
+        assert!(vol > 0, "体积回绕了: {vol}");
+    }
 }

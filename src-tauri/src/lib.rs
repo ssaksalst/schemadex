@@ -727,28 +727,103 @@ fn build_assets(jar: String, state: State<AppState>) -> Result<AssetsStatus, Str
 
 #[tauri::command]
 fn suggest_roots() -> Vec<String> {
-    let mut out = Vec::new();
-    let mut push_if_exists = |p: PathBuf| {
+    let mut exact: Vec<PathBuf> = Vec::new();
+    // 「实例容器」：它的每个子目录下面各有一个游戏目录。
+    // Prism / MultiMC / PolyMC 就是这个布局，一个实例一个 `.minecraft`
+    let mut instance_dirs: Vec<PathBuf> = Vec::new();
+    platform_candidates(&mut exact, &mut instance_dirs);
+
+    let mut out: Vec<String> = Vec::new();
+    for p in exact {
         if p.is_dir() {
             out.push(p.to_string_lossy().into_owned());
         }
-    };
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        push_if_exists(PathBuf::from(&appdata).join(".minecraft"));
     }
-    for drive in ["C:\\", "D:\\", "E:\\", "F:\\"] {
-        let root = Path::new(drive);
-        let Ok(rd) = fs::read_dir(root) else { continue };
-        for e in rd.flatten().take(200) {
-            let p = e.path().join(".minecraft");
-            if p.is_dir() {
-                out.push(p.to_string_lossy().into_owned());
+    for container in instance_dirs {
+        let Ok(rd) = fs::read_dir(&container) else { continue };
+        for e in rd.flatten().take(500) {
+            // Prism 用 `.minecraft`，老的 MultiMC 用 `minecraft`
+            for name in [".minecraft", "minecraft"] {
+                let p = e.path().join(name);
+                if p.is_dir() {
+                    out.push(p.to_string_lossy().into_owned());
+                }
             }
         }
     }
     out.sort();
     out.dedup();
     out
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+/// 各平台上 `.minecraft` 可能在哪。**布局差得很远，必须分开写**：
+/// Windows 上 PCL / HMCL 习惯把整个游戏装在任意盘的任意目录；
+/// Linux / macOS 上则是官方启动器的固定路径，加上 Prism / MultiMC 的实例目录，
+/// 还要考虑 Flatpak 把一切塞进 `~/.var/app/<id>/` 的沙盒布局。
+#[cfg(target_os = "windows")]
+fn platform_candidates(exact: &mut Vec<PathBuf>, instances: &mut Vec<PathBuf>) {
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        exact.push(PathBuf::from(&appdata).join(".minecraft"));
+    }
+    if let Some(h) = home_dir() {
+        for p in ["AppData/Roaming/PrismLauncher/instances", "scoop/apps/multimc/current/instances"] {
+            instances.push(h.join(p));
+        }
+    }
+    // PCL / HMCL 常把游戏装在任意盘根下的任意目录，扫一层盘符
+    for drive in ["C:\\", "D:\\", "E:\\", "F:\\"] {
+        let Ok(rd) = fs::read_dir(Path::new(drive)) else { continue };
+        for e in rd.flatten().take(200) {
+            exact.push(e.path().join(".minecraft"));
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn platform_candidates(exact: &mut Vec<PathBuf>, instances: &mut Vec<PathBuf>) {
+    let Some(h) = home_dir() else { return };
+    exact.push(h.join(".minecraft"));
+    // Flatpak 版官方启动器
+    exact.push(h.join(".var/app/com.mojang.Minecraft/.minecraft"));
+    // HMCL 在 Linux 上默认也是 ~/.minecraft，但也有人放 ~/.hmcl
+    exact.push(h.join(".hmcl/.minecraft"));
+
+    for p in [
+        ".local/share/PrismLauncher/instances",
+        ".local/share/PolyMC/instances",
+        ".local/share/multimc/instances",
+        ".local/share/MultiMC/instances",
+    ] {
+        instances.push(h.join(p));
+    }
+    // Flatpak 版 Prism / MultiMC，路径被套进沙盒目录
+    for p in [
+        ".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances",
+        ".var/app/org.polymc.PolyMC/data/PolyMC/instances",
+    ] {
+        instances.push(h.join(p));
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn platform_candidates(exact: &mut Vec<PathBuf>, instances: &mut Vec<PathBuf>) {
+    let Some(h) = home_dir() else { return };
+    // macOS 上官方启动器的目录叫 minecraft，没有前导点
+    exact.push(h.join("Library/Application Support/minecraft"));
+    exact.push(h.join(".minecraft"));
+    for p in [
+        "Library/Application Support/PrismLauncher/instances",
+        "Library/Application Support/PolyMC/instances",
+        "Library/Application Support/multimc/instances",
+    ] {
+        instances.push(h.join(p));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

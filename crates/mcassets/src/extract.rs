@@ -662,7 +662,7 @@ fn zh_cn_from_asset_store(jar_path: &Path) -> Option<Vec<u8>> {
         }
         let path = objects.join(&hash[..2]).join(hash);
         let Ok(bytes) = std::fs::read(&path) else { continue };
-        if best.as_ref().is_none_or(|b| bytes.len() > b.len()) {
+        if best.as_ref().map_or(true, |b| bytes.len() > b.len()) {
             best = Some(bytes);
         }
     }

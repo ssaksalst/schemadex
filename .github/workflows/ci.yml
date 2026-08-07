@@ -1,0 +1,78 @@
+name: CI
+
+# 这个项目是在 Windows 上开发的，Linux / macOS 那两条路**没有本地验证手段**。
+# 所以 CI 不是走形式：它是唯一能证明「改完之后 Linux 还编得过」的地方。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: 测试与构建 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri 在 Linux 上要的系统库。webkit2gtk-4.1 是 Tauri 2 的版本，
+      # 别写成 4.0——那是 Tauri 1 的，装了也链接不上
+      - name: 安装 Linux 依赖
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            file
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npx tsc --noEmit -p tsconfig.json
+
+      # 内核的单元测试。材质表不在仓库里（是 MC 素材，不分发），
+      # 所以这里跑不了需要真实蓝图或图集的那些验证，只跑单测
+      - name: 单元测试
+        run: cargo test --release --workspace
+
+      # 只把**正确性**类 lint 当错误，风格类不挡路。
+      # 顺带当 MSRV 检查用：Cargo.toml 里声明了 rust-version = 1.75，
+      # clippy 会揪出任何比它新的标准库 API——发行版自带的 Rust 往往很旧，
+      # 用了新 API 而不自知的话，Linux 用户从源码编就直接失败
+      - name: clippy（正确性 + MSRV）
+        run: cargo clippy --workspace --all-targets -- -D clippy::correctness -D clippy::suspicious
+
+      # 桌面应用**只能**经 Tauri CLI 构建，直接 cargo build -p schemadex-app
+      # 出来的是 dev 二进制（前端资源没内嵌）。这里用 --no-bundle：
+      # 编译和链接过了就说明这个平台是通的，打包留给 release 流程
+      - name: 构建桌面应用
+        run: npm run tauri build -- --no-bundle

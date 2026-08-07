@@ -58,17 +58,42 @@ schemadex sample <colors.json> <out.png> <block...>     # 方块对照表，可�
 当前在 2138 个真实蓝图上 **2132 一致、0 解析失败**；剩下 6 个是蓝图作者把 Metadata
 改成了梗数字（`1919810` / `114514`），已按内容哈希登记为已知例外。
 
+## 平台支持
+
+| 平台 | 状态 |
+| --- | --- |
+| Windows | 有安装包，日常开发就在这上面 |
+| Linux | 源码构建，CI 上每次提交都编（deb / AppImage / rpm） |
+| macOS | 源码构建，CI 上每次提交都编 |
+
+Linux / macOS 上会自动探测这些位置的游戏目录：官方启动器的
+`~/.minecraft`（macOS 是 `~/Library/Application Support/minecraft`）、
+Flatpak 的沙盒路径，以及 Prism / PolyMC / MultiMC 的 `instances/<实例>/.minecraft`。
+找不到就手动指定目录。
+
+> Linux / macOS 的包**没有实机跑过**——CI 只保证编得过、链得上。
+> 真机上遇到问题请开 issue。
+
 ## 从源码构建
 
-需要 Rust（MSVC 工具链）和 Node。
+需要 Rust 1.75+ 和 Node 20+。
+
+Linux 还要装 Tauri 的系统依赖（Debian / Ubuntu）：
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+  libayatana-appindicator3-dev libxdo-dev libssl-dev patchelf build-essential file
+```
+
+`libwebkit2gtk-4.1` 是 Tauri 2 要的版本，别装成 4.0（那是 Tauri 1 的）。
 
 ```bash
 npm install
 npm run tauri build
 ```
 
-产物是安装包；想要免安装的 exe 就加 `-- --no-bundle`，出在
-`target/release/schemadex-app.exe`。
+产物按平台走：Windows 是 NSIS 安装包，Linux 是 deb / AppImage / rpm，macOS 是 dmg。
+想要免安装的可执行文件就加 `-- --no-bundle`，出在 `target/release/schemadex-app`。
 
 > ⚠️ **别用 `cargo build -p schemadex-app`。** 不经 Tauri CLI 编出来的是 dev 模式二进制，
 > 前端资源没被内嵌，启动后会去连 `devUrl`（localhost:1421），窗口里显示
@@ -115,7 +140,7 @@ cargo build --release
   漏斗计时器的填充物，不是建造材料。
 - 模型的 element 级旋转没做。墙上火把不是斜的、拉杆手柄是直立的——
   不影响认出这是什么方块，按上面那条取舍标准就不做。
-- 自动探测 `.minecraft` 目前只覆盖 Windows。其它平台手动指定目录即可。
+- Linux / macOS 的构建只经过 CI 编译验证，没有实机运行过。
 
 ## 许可
 

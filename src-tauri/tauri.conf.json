@@ -26,12 +26,22 @@
   },
   "bundle": {
     "active": true,
-    "targets": "nsis",
+    "targets": "all",
+    "category": "Utility",
+    "shortDescription": "本地 .litematic 蓝图库管理器",
+    "longDescription": "不开游戏就能翻自己的 Minecraft 蓝图：等距缩略图、3D 预览、逐层切片，以及跨蓝图的材料汇总。不含也不分发任何 Minecraft 素材，首次运行从你自己的客户端 jar 提取。",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
+      "icons/128x128@2x.png",
       "icons/256x256.png",
+      "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    }
   }
 }
