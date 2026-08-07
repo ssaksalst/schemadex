@@ -119,6 +119,33 @@ npm install && npm run tauri build -- --no-bundle
 
 命令行工具不受此限制：`cargo build --release`。
 
+### 跨平台
+
+Windows / Linux / macOS 三条路，`.github/workflows/ci.yml` 每次提交都在三个平台上
+跑测试 + clippy + Tauri 构建。
+
+> **开发机是 Windows，Linux / macOS 本地没有任何验证手段。CI 是唯一的证明。**
+> 改动只要碰到路径探测、系统依赖、标准库 API，就得看 CI 绿不绿，别凭感觉。
+> 三个平台的包都**没有实机跑过**——CI 只保证编得过、链得上。
+
+平台相关的代码只有一处：`platform_candidates()`（`src-tauri/src/lib.rs`），
+按 `cfg(target_os)` 分三份。各平台的游戏目录布局差得很远：
+
+- **Windows**：`%APPDATA%\.minecraft`，外加扫 C:–F: 盘符一层——PCL / HMCL
+  习惯把整个游戏装在任意盘的任意目录。
+- **Linux**：`~/.minecraft`、Flatpak 的 `~/.var/app/<id>/`，以及
+  Prism / PolyMC / MultiMC 的 `instances/<实例>/.minecraft`。
+- **macOS**：`~/Library/Application Support/minecraft`（**没有前导点**，
+  和另外两个平台不一样）。
+
+Prism 系的实例目录里，新版用 `.minecraft`、老 MultiMC 用 `minecraft`，两个都要认。
+
+**clippy 兼任 MSRV 检查。** `Cargo.toml` 声明 `rust-version = "1.75"`，
+clippy 会揪出任何比它新的标准库 API。这不是形式主义：发行版自带的 Rust 往往很旧，
+用了 1.82 才有的 `is_none_or` 而不自知的话，Linux 用户从源码编直接失败——
+这个坑就是 CI 建起来当天踩到的。CI 只把 correctness / suspicious 当错误，
+风格类 lint 不挡路。
+
 ### 材质表从哪来
 
 **材质表和图集不编进二进制，也不进仓库。**
